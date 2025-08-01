@@ -8,11 +8,8 @@ import soundfile as sf
 from flask import Flask, request, Response, jsonify, stream_with_context, send_file
 import sys
 import os
-# 获取当前脚本所在目录（src）
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# 将上一级目录（项目根目录）加入 Python 模块搜索路径
-project_root = os.path.abspath(os.path.join(current_dir, ".."))
-sys.path.append(project_root)
+
+from future.backports.test.ssl_servers import threading
 
 # 设置日志基本配置
 logging.basicConfig(
@@ -23,7 +20,7 @@ logging.basicConfig(
 # 将当前文件所在的目录添加到 sys.path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from load_infer_info import load_character, get_wav_from_text_api, update_character_info
+from load_infer_info import load_character, character_name, get_wav_from_text_api, models_path, update_character_info
 
 app = Flask(__name__)
 
@@ -62,6 +59,7 @@ def tts():
         data = request.json
     else:
         data = request.args
+    print(f'data is {data}')
 
     text = urllib.parse.unquote(data.get('text', ''))
     #将text转json并获取其中的text
@@ -74,8 +72,14 @@ def tts():
             return jsonify({"error": "Invalid JSON format in 'text' parameter."}), 400
     print(f'text is ',text)
     cha_name = data.get('cha_name', None)
-    expected_path = os.path.join(models_path, cha_name) if cha_name else None
-
+    print(f'cha_name is {cha_name}')
+    try:
+        expected_path = os.path.join(models_path, cha_name) if cha_name else None
+    except:
+        # 如果cha_name无法构造路径，设置expected_path为None
+        expected_path = None
+        print(f'Error constructing expected_path for cha_name: {cha_name}')
+    print(f'expected_path is {expected_path}, cha_name is {cha_name}, character_name is {character_name}')
     # 检查cha_name和路径
     if cha_name and cha_name != character_name and expected_path and os.path.exists(expected_path):
         character_name = cha_name
